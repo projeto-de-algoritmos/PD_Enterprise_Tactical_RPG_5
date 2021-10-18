@@ -2,7 +2,6 @@ package game.entities;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
 
 import game.WISCheapestPath;
 import game.extra_algorithms.WeightedIntervalScheduling;
@@ -10,16 +9,36 @@ import graphs.GraphMatrix;
 
 public class WISEnemyArmy {
 	private List<WISEnemy> enemies;
+	private List<Entity> allEnemies;
 	private GraphMatrix<Integer, Integer> grid;
-	private Consumer<Enemy> lockOtherEnemies;
-	private Runnable unlockAllEnemies;
 	private Entity target;
 	private List<WISCheapestPath> orderedPaths;
 
-	public WISEnemyArmy(Consumer<Enemy> lockOtherEnemies, Runnable unlockAllEnemies) {
-		this.setLockOtherEnemies(lockOtherEnemies);
-		this.setUnlockAllEnemies(unlockAllEnemies);
+	public WISEnemyArmy() {
 		this.setOrderedPaths(new ArrayList<WISCheapestPath>());
+	}
+
+	/**
+	 * Marca outros inimigos como casas proibidas, evitando que dois inimigos
+	 * fiquem, ao mesmo tempo, em uma casa só
+	 * 
+	 * @param enemy
+	 */
+	private void lockOtherEnemies(Enemy enemy) {
+		for (Entity otherEnemy : allEnemies) {
+			grid.setElementValue(otherEnemy.getGridX(), otherEnemy.getGridY(), grid.getVISITED());
+		}
+		grid.setElementValue(enemy.getGridX(), enemy.getGridY(), grid.getEMPTY());
+	}
+
+	/**
+	 * Libera a trava que impede os inimigos de estarem juntos em uma mesma casa.
+	 * Sempre execute essa função após executar {@link #lockOtherEnemies(Enemy)}
+	 */
+	private void unlockAllEnemies() {
+		for (Entity enemy : allEnemies) {
+			grid.setElementValue(enemy.getGridX(), enemy.getGridY(), grid.getEMPTY());
+		}
 	}
 
 	public void findPath() {
@@ -28,7 +47,7 @@ public class WISEnemyArmy {
 
 		for (WISEnemy enemy : enemies) {
 			// Impedir inimigos de entrarem uns nos outros
-			lockOtherEnemies.accept(enemy);
+			lockOtherEnemies(enemy);
 
 			WISCheapestPath enemyPath = new WISCheapestPath(enemy, getTarget(),
 					paths.isEmpty() ? 0 : paths.get(paths.size() - 1).getEnd() + 1, grid);
@@ -38,7 +57,7 @@ public class WISEnemyArmy {
 			}
 
 			// Reverter mudança
-			unlockAllEnemies.run();
+			unlockAllEnemies();
 		}
 
 		if (!paths.isEmpty()) {
@@ -80,20 +99,6 @@ public class WISEnemyArmy {
 	}
 
 	/**
-	 * @param lockOtherEnemies the lockOtherEnemies to set
-	 */
-	public void setLockOtherEnemies(Consumer<Enemy> lockOtherEnemies) {
-		this.lockOtherEnemies = lockOtherEnemies;
-	}
-
-	/**
-	 * @param unlockAllEnemies the unlockAllEnemies to set
-	 */
-	public void setUnlockAllEnemies(Runnable unlockAllEnemies) {
-		this.unlockAllEnemies = unlockAllEnemies;
-	}
-
-	/**
 	 * @return the target
 	 */
 	public Entity getTarget() {
@@ -119,5 +124,19 @@ public class WISEnemyArmy {
 	 */
 	private void setOrderedPaths(List<WISCheapestPath> orderedPaths) {
 		this.orderedPaths = orderedPaths;
+	}
+
+	/**
+	 * @return the allEnemies
+	 */
+	public List<Entity> getAllEnemies() {
+		return allEnemies;
+	}
+
+	/**
+	 * @param allEnemies the allEnemies to set
+	 */
+	public void setAllEnemies(List<Entity> allEnemies) {
+		this.allEnemies = allEnemies;
 	}
 }

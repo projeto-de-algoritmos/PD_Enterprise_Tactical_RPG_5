@@ -25,7 +25,6 @@ import game.entities.Player;
 import game.entities.WISEnemy;
 import game.entities.WISEnemyArmy;
 import game.extra_algorithms.Quickselect;
-import game.extra_algorithms.WeightedIntervalSchedulingTask;
 import graphs.CheapestPath;
 import graphs.GraphMatrix;
 import graphs.Position;
@@ -184,7 +183,7 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 	private List<WISEnemy> wisEnemies = new ArrayList<WISEnemy>();
 	private List<Entity> allEnemies = new ArrayList<Entity>();
 	
-	private WISEnemyArmy wisEnemyArmy = new WISEnemyArmy((Enemy e) ->lockOtherEnemies(e), () -> unlockAllEnemies());
+	private WISEnemyArmy wisEnemyArmy = new WISEnemyArmy();
 
 	private int sizeX;
 	private int sizeY;
@@ -283,6 +282,7 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 		
 		// Inicializar exércitos
 		wisEnemyArmy.setEnemies(wisEnemies);
+		wisEnemyArmy.setAllEnemies(allEnemies);
 
 		// Inicializa Grafo do Mapa
 		grid = new GraphMatrix<Integer, Integer>(sizeX, sizeY, EMPTY, VISITED, FORBIDDEN, initialCost, minimumCost,
