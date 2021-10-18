@@ -217,7 +217,7 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 	
 	private SoundPlayer soundPlayer;
 
-	public Panel(int size, int width, int height, boolean stepMode) {
+	public Panel(int size, int width, int height, boolean stepMode, boolean soundEnabled) {
 
 		// Step Mode
 		this.stepMode = stepMode;
@@ -299,12 +299,14 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 		
 		// Inicializa os Sons
 		HashMap<String, String> sounds = new HashMap<String, String>();
-		sounds.put("playerMove", "assets/playermove.wav");
-		sounds.put("enemyMove", "assets/enemymove.wav");
-		sounds.put("death", "assets/exp.wav");
-		
+		if(soundEnabled) {
+			sounds.put("playerMove", "assets/playermove.wav");
+			sounds.put("enemyMove", "assets/enemymove.wav");
+			sounds.put("death", "assets/death.wav");
+			
+		}
 		soundPlayer = new SoundPlayer(sounds);
-
+		
 		// Inicializa Mapa
 		map = new Map(grid, hash, WIDTH, HEIGHT, sizeX, sizeY);
 		addRandomCosts((sizeX * sizeY) / 2, hash.size() + 1);
@@ -417,6 +419,7 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 				// Movimentação direta
 				player.setGridX((m.getX() - 1) / tileSize);
 				player.setGridY((m.getY() - 1) / tileSize);
+				soundPlayer.play("playerMove");
 			}
 			inPlayer = true;
 
