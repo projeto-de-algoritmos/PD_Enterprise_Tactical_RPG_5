@@ -193,6 +193,8 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 
 	private int msDelay = 60;
 	private int msLongerDelay = 2 * msDelay;
+	
+	private SoundPlayer soundPlayer;
 
 	public Panel(int size, int width, int height, boolean stepMode) {
 
@@ -261,6 +263,14 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 		hash.put(initialCost, Color.GREEN);
 		hash.put(initialCost + 1, Color.YELLOW);
 		hash.put(initialCost + 2, Color.ORANGE);
+		
+		// Inicializa os Sons
+		HashMap<String, String> sounds = new HashMap<String, String>();
+		sounds.put("playerMove", "assets/playermove.wav");
+		sounds.put("enemyMove", "assets/enemymove.wav");
+		sounds.put("death", "assets/exp.wav");
+		
+		soundPlayer = new SoundPlayer(sounds);
 
 		// Inicializa Mapa
 		map = new Map(grid, hash, WIDTH, HEIGHT, sizeX, sizeY);
@@ -388,6 +398,7 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 
 			for (Entity enemy : allEnemies) {
 				if (enemy.getGridX().equals(player.getGridX()) && enemy.getGridY().equals(player.getGridY())) {
+					soundPlayer.play("death");
 					stop();
 				}
 			}
@@ -403,6 +414,7 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 				break;
 			player.setGridX(pos.getPosX());
 			player.setGridY(pos.getPosY());
+			soundPlayer.play("playerMove");
 			delayPaint(msDelay);
 			counter++;
 		}
@@ -638,6 +650,7 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 		for (Position p : item.getPath().getPath()) {
 			item.getGreedyEnemy().setGridX(p.getPosX());
 			item.getGreedyEnemy().setGridY(p.getPosY());
+			soundPlayer.play("enemyMove");
 			delayPaint(msDelay);
 			if (p == finish) {
 				break;
@@ -719,6 +732,7 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 				// Movimentação passo a passo
 				enemy.setGridX(p.getPosX());
 				enemy.setGridY(p.getPosY());
+				soundPlayer.play("enemyMove");
 				delayPaint(msDelay);
 			}
 			if (actualCost > enemy.getMoves() + initialTileCost) {
@@ -737,6 +751,8 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 			enemy.setGridY(endPosition.getPosY());
 		}
 	}
+	
+	
 
 	private boolean checkOverride(int x1, int y1, int x2, int y2) {
 		return (x1 == x2 && y1 == y2);
