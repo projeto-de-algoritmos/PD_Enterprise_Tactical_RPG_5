@@ -22,7 +22,9 @@ import game.entities.Entity;
 import game.entities.GreedyEnemy;
 import game.entities.MedianEnemy;
 import game.entities.Player;
+import game.entities.WISEnemy;
 import game.extra_algorithms.Quickselect;
+import game.extra_algorithms.WeightedIntervalSchedulingTask;
 import graphs.CheapestPath;
 import graphs.GraphMatrix;
 import graphs.Position;
@@ -138,6 +140,149 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 			return Double.compare(this.getSpecificValue(), o.getSpecificValue());
 		}
 	}
+	
+	private class WISCheapestPath extends EnemyCheapestPath implements WeightedIntervalSchedulingTask<WISCheapestPath, Integer, Integer> {
+		private final WISEnemy wisEnemy;
+		private final CheapestPath<Position, Integer> path;
+		private final Integer weight;
+		private final Integer cost;
+		private final Integer start;
+		private final Integer end;
+		private final Boolean valid;
+		private final Comparator<Integer> timeComparator;
+		private final Comparator<Integer> weightComparator;
+		private final Comparator<WISCheapestPath> timeComparatorToSort;
+
+		WISCheapestPath(WISEnemy wisEnemy, Player player, Integer start) {
+			super(wisEnemy, player);
+			this.wisEnemy = wisEnemy;
+			this.path = grid.dijkstra(new Position(wisEnemy.getGridX(), wisEnemy.getGridY()),
+					new Position(player.getGridX(), player.getGridY()));
+			this.weight = this.path == null ? null : path.getPath().size();
+			this.cost = this.path == null ? null : path.getTotalCost();
+			this.start = start;
+			this.end = this.start + this.cost/wisEnemy.getMoves();
+			this.valid = this.path == null ? false : true;
+			
+			this.weightComparator = new Comparator<Integer>() {
+				@Override
+				public int compare(Integer o1, Integer o2) {
+					return Integer.compare(o1, o2);
+				}
+			};
+			
+			this.timeComparator = new Comparator<Integer>() {
+				@Override
+				public int compare(Integer o1, Integer o2) {
+					return Integer.compare(o1, o2);
+				}
+			};
+			
+			this.timeComparatorToSort = new CompareWISCheapestPathWeight();
+		}
+		
+		/**
+		 * @return the cost
+		 */
+		public Integer getCost() {
+			return cost;
+		}
+
+		/**
+		 * @return the start
+		 */
+		public Integer getStart() {
+			return start;
+		}
+
+		/**
+		 * @return the end
+		 */
+		public Integer getEnd() {
+			return end;
+		}
+
+		/**
+		 * @return the greedyEnemy
+		 */
+		WISEnemy getWisEnemy() {
+			return wisEnemy;
+		}
+
+		/**
+		 * @return the path
+		 */
+		@Override
+		CheapestPath<Position, Integer> getPath() {
+			return path;
+		}
+
+		/**
+		 * @return the weight
+		 */
+		public Integer getWeight() {
+			return weight;
+		}
+
+		/**
+		 * @return the valid
+		 */
+		@Override
+		Boolean getValid() {
+			return valid;
+		}
+
+		@Override
+		public Comparator<Integer> getTimeComparator() {
+			return timeComparator;
+		}
+
+		@Override
+		public Comparator<Integer> getWeightComparator() {
+			return weightComparator;
+		}
+
+		@Override
+		public Comparator<WISCheapestPath> getTimeComparatorToSort() {
+			// TODO Auto-generated method stub
+			return timeComparatorToSort;
+		}
+
+		@Override
+		public BinaryOperator<Integer> getWeightAdder() {
+			return (Integer a, Integer b) -> Integer.sum(a, b);
+		}
+	}
+	
+	private class CompareWISCheapestPathWeight implements Comparator<WISCheapestPath> {
+		@Override
+		public int compare(WISCheapestPath o1, WISCheapestPath o2) {
+			if (o1.getWeight() < o2.getWeight()) {
+				return -1;
+			}
+
+			if (o1.getWeight() > o2.getWeight()) {
+				return 1;
+			}
+
+			return 0;
+		}
+	}
+	
+	private class CompareWISCheapestPathEnd implements Comparator<WISCheapestPath> {
+		@Override
+		public int compare(WISCheapestPath o1, WISCheapestPath o2) {
+			if (o1.getEnd() < o2.getEnd()) {
+				return -1;
+			}
+
+			if (o1.getEnd() > o2.getEnd()) {
+				return 1;
+			}
+
+			return 0;
+		}
+	}
 
 	private static final long serialVersionUID = 1L;
 	private static final Integer FORBIDDEN = -1;
@@ -163,6 +308,7 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 	private List<Enemy> enemies = new ArrayList<Enemy>();
 	private List<GreedyEnemy> greedyEnemies = new ArrayList<GreedyEnemy>();
 	private List<MedianEnemy> medianEnemies = new ArrayList<MedianEnemy>();
+	private List<WISEnemy> wisEnemies = new ArrayList<WISEnemy>();
 	private List<Entity> allEnemies = new ArrayList<Entity>();
 
 	private int sizeX;
@@ -245,11 +391,20 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 		medianEnemies.add(new MedianEnemy(enemyMoves, 8, 8, tileSize, off, h, w, Color.RED));
 		medianEnemies.add(new MedianEnemy(enemyMoves, 13, 13, tileSize, off, h, w, Color.RED));
 		medianEnemies.add(new MedianEnemy(enemyMoves, 8, 13, tileSize, off, h, w, Color.RED));
+		
+		// Inicializar inimigos do agendamento com peso
+		h = (int) (tileSize * 0.9); // 90% do tileSize
+		w = (int) (tileSize * 0.9); // 90% do tileSize
+		off = (tileSize - w) / 2; // Meio do tile
+		wisEnemies.add(new WISEnemy(enemyMoves, 7, 7, tileSize, off, h, w, Color.RED));
+		wisEnemies.add(new WISEnemy(enemyMoves, 12, 12, tileSize, off, h, w, Color.RED));
+		wisEnemies.add(new WISEnemy(enemyMoves, 7, 12, tileSize, off, h, w, Color.RED));
 
 		// Lista de inimigos
 		allEnemies.addAll(enemies);
 		allEnemies.addAll(greedyEnemies);
 		allEnemies.addAll(medianEnemies);
+		allEnemies.addAll(wisEnemies);
 
 		// Inicializa Grafo do Mapa
 		grid = new GraphMatrix<Integer, Integer>(sizeX, sizeY, EMPTY, VISITED, FORBIDDEN, initialCost, minimumCost,
@@ -691,6 +846,28 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 			moveEnemyToPlayerWithCost(choosen.getEnemy(), choosen.getPath());
 		}
 
+		grid.setVisitedToEmpty();
+	}
+	
+	void encontraCaminhoInimigosWIS() {
+		grid.setVisitedToEmpty();
+		
+		List<EnemyCheapestPath> items = new ArrayList<EnemyCheapestPath>();
+		
+		for (WISEnemy enemy : wisEnemies) {
+			// Impedir inimigos de entrarem uns nos outros
+			lockOtherEnemies(enemy);
+
+			WISCheapestPath enemyPath = new WISCheapestPath(enemy, player, 0);
+
+			if (enemyPath.getValid()) {
+				items.add(enemyPath);
+			}
+
+			// Reverter mudança
+			unlockAllEnemies();
+		}
+		
 		grid.setVisitedToEmpty();
 	}
 
