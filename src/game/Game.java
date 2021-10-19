@@ -12,7 +12,7 @@ public class Game {
 	private Panel panel;
 	private int score;
 
-	public Game(int size, boolean stepMode) {
+	public Game(int size, boolean stepMode, boolean sounds) {
 		this.setRunning(true);
 		
 		int mod = 500 % size;
@@ -27,7 +27,7 @@ public class Game {
 		frame.setSize(500 - mod, 530 - mod);
 		frame.setLocationRelativeTo(null);
 		
-		panel = new Panel(size, 500-mod, 500-mod, stepMode);
+		panel = new Panel(size, 500-mod, 500-mod, stepMode, sounds);
 		frame.add(panel);
 		
 		frame.setVisible(true);

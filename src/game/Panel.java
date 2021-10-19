@@ -22,6 +22,8 @@ import game.entities.Entity;
 import game.entities.GreedyEnemy;
 import game.entities.MedianEnemy;
 import game.entities.Player;
+import game.entities.WISEnemy;
+import game.entities.WISEnemyArmy;
 import game.extra_algorithms.Quickselect;
 import graphs.CheapestPath;
 import graphs.GraphMatrix;
@@ -33,7 +35,7 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 		private final CheapestPath<Position, Integer> path;
 		private final Boolean valid;
 
-		EnemyCheapestPath(Enemy enemy, Player player) {
+		private EnemyCheapestPath(Enemy enemy, Entity player) {
 			this.enemy = enemy;
 			this.path = grid.dijkstra(new Position(enemy.getGridX(), enemy.getGridY()),
 					new Position(player.getGridX(), player.getGridY()));
@@ -138,6 +140,21 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 			return Double.compare(this.getSpecificValue(), o.getSpecificValue());
 		}
 	}
+	
+	private class CompareWISCheapestPathEnd implements Comparator<WISCheapestPath> {
+		@Override
+		public int compare(WISCheapestPath o1, WISCheapestPath o2) {
+			if (o1.getEnd() < o2.getEnd()) {
+				return -1;
+			}
+
+			if (o1.getEnd() > o2.getEnd()) {
+				return 1;
+			}
+
+			return 0;
+		}
+	}
 
 	private static final long serialVersionUID = 1L;
 	private static final Integer FORBIDDEN = -1;
@@ -163,7 +180,10 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 	private List<Enemy> enemies = new ArrayList<Enemy>();
 	private List<GreedyEnemy> greedyEnemies = new ArrayList<GreedyEnemy>();
 	private List<MedianEnemy> medianEnemies = new ArrayList<MedianEnemy>();
+	private List<WISEnemy> wisEnemies = new ArrayList<WISEnemy>();
 	private List<Entity> allEnemies = new ArrayList<Entity>();
+	
+	private WISEnemyArmy wisEnemyArmy = new WISEnemyArmy();
 
 	private int sizeX;
 	private int sizeY;
@@ -193,8 +213,10 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 
 	private int msDelay = 60;
 	private int msLongerDelay = 2 * msDelay;
+	
+	private SoundPlayer soundPlayer;
 
-	public Panel(int size, int width, int height, boolean stepMode) {
+	public Panel(int size, int width, int height, boolean stepMode, boolean soundEnabled) {
 
 		// Step Mode
 		this.stepMode = stepMode;
@@ -243,11 +265,24 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 		medianEnemies.add(new MedianEnemy(enemyMoves, 8, 8, tileSize, off, h, w, Color.RED));
 		medianEnemies.add(new MedianEnemy(enemyMoves, 13, 13, tileSize, off, h, w, Color.RED));
 		medianEnemies.add(new MedianEnemy(enemyMoves, 8, 13, tileSize, off, h, w, Color.RED));
+		
+		// Inicializar inimigos do agendamento com peso
+		h = (int) (tileSize * 0.9); // 90% do tileSize
+		w = (int) (tileSize * 0.9); // 90% do tileSize
+		off = (tileSize - w) / 2; // Meio do tile
+		wisEnemies.add(new WISEnemy(enemyMoves, 7, 7, tileSize, off, h, w, Color.RED));
+		wisEnemies.add(new WISEnemy(enemyMoves, 12, 12, tileSize, off, h, w, Color.RED));
+		wisEnemies.add(new WISEnemy(enemyMoves, 7, 12, tileSize, off, h, w, Color.RED));
 
 		// Lista de inimigos
 		allEnemies.addAll(enemies);
 		allEnemies.addAll(greedyEnemies);
 		allEnemies.addAll(medianEnemies);
+		allEnemies.addAll(wisEnemies);
+		
+		// Inicializar exércitos
+		wisEnemyArmy.setEnemies(wisEnemies);
+		wisEnemyArmy.setAllEnemies(allEnemies);
 
 		// Inicializa Grafo do Mapa
 		grid = new GraphMatrix<Integer, Integer>(sizeX, sizeY, EMPTY, VISITED, FORBIDDEN, initialCost, minimumCost,
@@ -261,7 +296,17 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 		hash.put(initialCost, Color.GREEN);
 		hash.put(initialCost + 1, Color.YELLOW);
 		hash.put(initialCost + 2, Color.ORANGE);
-
+		
+		// Inicializa os Sons
+		HashMap<String, String> sounds = new HashMap<String, String>();
+		if(soundEnabled) {
+			sounds.put("playerMove", "assets/playermove.wav");
+			sounds.put("enemyMove", "assets/enemymove.wav");
+			sounds.put("death", "assets/death.wav");
+			
+		}
+		soundPlayer = new SoundPlayer(sounds);
+		
 		// Inicializa Mapa
 		map = new Map(grid, hash, WIDTH, HEIGHT, sizeX, sizeY);
 		addRandomCosts((sizeX * sizeY) / 2, hash.size() + 1);
@@ -374,6 +419,7 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 				// Movimentação direta
 				player.setGridX((m.getX() - 1) / tileSize);
 				player.setGridY((m.getY() - 1) / tileSize);
+				soundPlayer.play("playerMove");
 			}
 			inPlayer = true;
 
@@ -388,6 +434,7 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 
 			for (Entity enemy : allEnemies) {
 				if (enemy.getGridX().equals(player.getGridX()) && enemy.getGridY().equals(player.getGridY())) {
+					soundPlayer.play("death");
 					stop();
 				}
 			}
@@ -403,6 +450,7 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 				break;
 			player.setGridX(pos.getPosX());
 			player.setGridY(pos.getPosY());
+			soundPlayer.play("playerMove");
 			delayPaint(msDelay);
 			counter++;
 		}
@@ -522,6 +570,9 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 
 		// Caminho dos inimigos medianos
 		encontraCaminhoInimigosMedian();
+		
+		// Caminho dos inimigos agendados por peso
+		encontraCaminhoInimigosWIS();
 
 		// Reativa a visibilidade do preview
 		previewVisibility = true;
@@ -638,6 +689,7 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 		for (Position p : item.getPath().getPath()) {
 			item.getGreedyEnemy().setGridX(p.getPosX());
 			item.getGreedyEnemy().setGridY(p.getPosY());
+			soundPlayer.play("enemyMove");
 			delayPaint(msDelay);
 			if (p == finish) {
 				break;
@@ -680,12 +732,26 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 
 		grid.setVisitedToEmpty();
 	}
+	
+	void encontraCaminhoInimigosWIS() {
+		grid.setVisitedToEmpty();
+		
+		wisEnemyArmy.setGrid(grid);
+		wisEnemyArmy.setTarget(player);
+		wisEnemyArmy.findPath();
+		
+		for (WISCheapestPath path : wisEnemyArmy.getOrderedPaths()) {
+			moveEnemyToPlayerWithCost(path.getEnemy(), path.getPath());
+		}
+		
+		grid.setVisitedToEmpty();
+	}
 
 	/**
 	 * @param enemy {@summary Marca outros inimigos como casas proibidas, evitando
 	 *              que dois inimigos fiquem, ao mesmo tempo, em uma casa só}
 	 */
-	private void lockOtherEnemies(Enemy enemy) {
+	public void lockOtherEnemies(Enemy enemy) {
 		for (Entity otherEnemy : allEnemies) {
 			grid.setElementValue(otherEnemy.getGridX(), otherEnemy.getGridY(), VISITED);
 		}
@@ -696,7 +762,7 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 	 * Libera a trava que impede os inimigos de estarem juntos em uma mesma casa.
 	 * Sempre execute essa função após executar {@link #lockOtherEnemies(Enemy)}
 	 */
-	private void unlockAllEnemies() {
+	public void unlockAllEnemies() {
 		for (Entity enemy : allEnemies) {
 			grid.setElementValue(enemy.getGridX(), enemy.getGridY(), EMPTY);
 		}
@@ -719,6 +785,7 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 				// Movimentação passo a passo
 				enemy.setGridX(p.getPosX());
 				enemy.setGridY(p.getPosY());
+				soundPlayer.play("enemyMove");
 				delayPaint(msDelay);
 			}
 			if (actualCost > enemy.getMoves() + initialTileCost) {
@@ -736,6 +803,13 @@ public class Panel extends JPanel implements MouseListener, MouseMotionListener 
 			enemy.setGridX(endPosition.getPosX());
 			enemy.setGridY(endPosition.getPosY());
 		}
+	}
+	
+	/**
+	 * @return the grid
+	 */
+	public GraphMatrix<Integer, Integer> getGrid() {
+		return grid;
 	}
 
 	private boolean checkOverride(int x1, int y1, int x2, int y2) {
